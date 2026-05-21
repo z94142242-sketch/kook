@@ -1,0 +1,11 @@
+{
+  "demo": {
+    "cwd": "C:\\Users\\Administrator\\Documents\\Codex\\2026-05-22\\codex\\desktop-tutorial-inspect",
+    "sandbox": "workspace-write",
+    "templates": {
+      "check": "请检查项目结构、README、依赖和明显问题，最后给出简短结论。",
+      "readme": "请读取 README.md 并总结重点。",
+      "build": "请检查项目的构建或类型检查方式，能运行就运行，并说明结果。"
+    }
+  }
+}
