@@ -1,5 +1,6 @@
 import zlib from "node:zlib";
 import WebSocket from "ws";
+import { hasCommandPrefix } from "./commands.js";
 import { config } from "./config.js";
 import { splitMessage } from "./messageSplit.js";
 
@@ -166,7 +167,7 @@ export class KookClient {
       if (event.target_id !== config.allowedChannelId) return false;
       if (event.author_id !== config.allowedUserId) return false;
       if (typeof event.content !== "string") return false;
-      if (!event.content.trim().startsWith("/codex")) return false;
+      if (!hasCommandPrefix(event.content, config.commandPrefixes)) return false;
     }
 
     if (event.msg_id) {

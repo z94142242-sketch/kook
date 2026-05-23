@@ -46,6 +46,8 @@ KOOK_BOT_TOKEN=
 KOOK_ALLOWED_USER_ID=
 KOOK_ALLOWED_CHANNEL_ID=
 KOOK_API_BASE=https://www.kookapp.cn/api/v3
+CODEX_COMMAND_PREFIXES=/codex,/c
+CODEX_DEFAULT_PROJECT=bridge
 CODEX_APPROVAL_POLICY=on-request
 CODEX_MAX_CONCURRENT_TASKS=1
 KOOK_MESSAGE_MAX_LENGTH=1800
@@ -91,16 +93,26 @@ npm run dev
 
 ## 手机 KOOK 使用示例
 
-列出项目：
+推荐短指令：
 
 ```text
-/codex projects
+/c
+/c 项目
+/c 状态
+/c control 检查一下
+/c bridge:readme
+/c 继续 请继续
+/c 检查一下
 ```
 
-打开主页：
+`/c` 会返回卡片主页，`/c 项目` 会返回项目卡片。`/c 检查一下` 会继续最近任务；如果还没有最近任务，并且配置了 `CODEX_DEFAULT_PROJECT`，则会用默认项目启动新任务。
+
+完整指令仍然可用：
 
 ```text
 /codex home
+/codex projects
+/codex run demo 请读取 README.md 并总结
 ```
 
 启动任务：
@@ -177,7 +189,7 @@ npm run dev
 
 ## 指挥舱主页和项目面板
 
-`/codex home` 会返回 Codex 指挥舱主页卡片，展示：
+`/codex home` 或 `/c` 会返回 Codex 指挥舱主页卡片，展示：
 
 - Gateway 状态
 - Codex MCP 状态
@@ -185,7 +197,7 @@ npm run dev
 - 项目数量
 - 最近任务
 
-`/codex projects` 会返回项目卡片。项目卡会显示路径、沙箱、最近任务，并根据 `projects.json` 里的 `templates` 生成快捷按钮。
+`/codex projects` 或 `/c 项目` 会返回项目卡片。项目卡会显示路径、沙箱、最近任务，并根据 `projects.json` 里的 `templates` 生成快捷按钮。
 
 ## 高风险确认
 
@@ -222,8 +234,8 @@ data/tasks.json
 ## 验收
 
 1. 运行 `npm run dev` 后，机器人保持在线。
-2. 手机 KOOK 发 `/codex projects` 能看到 `demo`。
-3. 手机 KOOK 发 `/codex run demo 请读取 README.md` 能收到 Codex 回复。
+2. 手机 KOOK 发 `/c 项目` 能看到 `demo`。
+3. 手机 KOOK 发 `/c demo 请读取 README.md` 能收到 Codex 回复。
 4. 回复中能拿到 `taskId`。
 5. 用 `/codex reply <taskId>` 能继续同一个 Codex 会话。
 6. 非授权用户发命令无响应。

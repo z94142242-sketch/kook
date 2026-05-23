@@ -43,7 +43,11 @@ async function handleMessage(kook: KookClient, event: KookEvent) {
     return;
   }
 
-  const command = parseCommand(event.content ?? "");
+  const command = parseCommand(event.content ?? "", {
+    prefixes: config.commandPrefixes,
+    projectKeys: Object.keys(getProjects()),
+    defaultProjectKey: config.defaultProjectKey
+  });
   if (!command) return;
 
   if (command.kind === "help") {
@@ -93,6 +97,10 @@ async function handleMessage(kook: KookClient, event: KookEvent) {
   if (command.kind === "reply") {
     const task = command.taskId ? taskStore.get(command.taskId) : taskStore.latest();
     if (!task) {
+      if (!command.taskId && config.defaultProjectKey) {
+        await requestRun(kook, config.defaultProjectKey, command.prompt);
+        return;
+      }
       await kook.sendMessage(ZH.taskNotFound);
       return;
     }

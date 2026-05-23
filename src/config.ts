@@ -13,6 +13,8 @@ const envSchema = z.object({
   KOOK_ALLOWED_USER_ID: z.string().min(1, "KOOK_ALLOWED_USER_ID is required"),
   KOOK_ALLOWED_CHANNEL_ID: z.string().min(1, "KOOK_ALLOWED_CHANNEL_ID is required"),
   KOOK_API_BASE: z.string().url().default("https://www.kookapp.cn/api/v3"),
+  CODEX_COMMAND_PREFIXES: z.string().default("/codex"),
+  CODEX_DEFAULT_PROJECT: z.string().optional(),
   CODEX_APPROVAL_POLICY: z.enum(["on-request", "never"]).default("on-request"),
   CODEX_MAX_CONCURRENT_TASKS: z.coerce.number().int().min(1).max(5).default(1),
   KOOK_MESSAGE_MAX_LENGTH: z.coerce.number().int().min(200).max(4000).default(1800),
@@ -32,6 +34,8 @@ export const config = {
   allowedUserId: env.KOOK_ALLOWED_USER_ID,
   allowedChannelId: env.KOOK_ALLOWED_CHANNEL_ID,
   apiBase: env.KOOK_API_BASE.replace(/\/$/, ""),
+  commandPrefixes: parseCommandPrefixes(env.CODEX_COMMAND_PREFIXES),
+  defaultProjectKey: env.CODEX_DEFAULT_PROJECT,
   approvalPolicy: env.CODEX_APPROVAL_POLICY,
   maxConcurrentTasks: env.CODEX_MAX_CONCURRENT_TASKS,
   kookMessageMaxLength: env.KOOK_MESSAGE_MAX_LENGTH,
@@ -39,3 +43,11 @@ export const config = {
   projectsPath: path.join(rootDir, "projects.json"),
   taskStorePath: path.join(rootDir, "data", "tasks.json")
 };
+
+function parseCommandPrefixes(value: string) {
+  const prefixes = value
+    .split(",")
+    .map((prefix) => prefix.trim())
+    .filter(Boolean);
+  return prefixes.length > 0 ? prefixes : ["/codex"];
+}
