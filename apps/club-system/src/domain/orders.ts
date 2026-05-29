@@ -8,6 +8,8 @@ export type Order = {
   title: string;
   customerNote: string | null;
   targetVoiceChannelId: string;
+  price: number;
+  commissionRate: number | null;
   status: OrderStatus;
   claimedBy: string | null;
   claimedAt: number | null;
@@ -22,6 +24,8 @@ type Row = {
   title: string;
   customer_note: string | null;
   target_voice_channel: string;
+  price: number;
+  commission_rate: number | null;
   status: OrderStatus;
   claimed_by: string | null;
   claimed_at: number | null;
@@ -37,6 +41,8 @@ function fromRow(row: Row): Order {
     title: row.title,
     customerNote: row.customer_note,
     targetVoiceChannelId: row.target_voice_channel,
+    price: row.price,
+    commissionRate: row.commission_rate,
     status: row.status,
     claimedBy: row.claimed_by,
     claimedAt: row.claimed_at,
@@ -65,16 +71,28 @@ export function createOrder(input: {
   title: string;
   customerNote?: string | null;
   targetVoiceChannelId: string;
+  price?: number;
+  commissionRate?: number | null;
   createdBy: string;
 }): Order {
   const orderId = `ord_${randomUUID()}`;
   const now = Date.now();
   getDb()
     .prepare(
-      `INSERT INTO orders (order_id, title, customer_note, target_voice_channel, status, created_at, created_by)
-       VALUES (?, ?, ?, ?, 'open', ?, ?)`
+      `INSERT INTO orders
+         (order_id, title, customer_note, target_voice_channel, price, commission_rate, status, created_at, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`
     )
-    .run(orderId, input.title, input.customerNote ?? null, input.targetVoiceChannelId, now, input.createdBy);
+    .run(
+      orderId,
+      input.title,
+      input.customerNote ?? null,
+      input.targetVoiceChannelId,
+      input.price ?? 0,
+      input.commissionRate ?? null,
+      now,
+      input.createdBy
+    );
   return findOrder(orderId)!;
 }
 

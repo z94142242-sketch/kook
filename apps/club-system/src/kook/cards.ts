@@ -66,6 +66,7 @@ export function orderCard(input: {
   title: string;
   customerNote?: string | null;
   targetVoiceChannelId: string;
+  price: number;
   status: string;
   claimedByName?: string | null;
 }) {
@@ -94,6 +95,7 @@ export function orderCard(input: {
           text: {
             type: "kmarkdown",
             content: [
+              `**金额**：${input.price > 0 ? `¥${input.price.toFixed(2)}` : "未填"}`,
               `**目标语音频道**：(channel)${input.targetVoiceChannelId}(channel)`,
               `**状态**：${statusLabel(input.status)}`,
               input.claimedByName ? `**当前接单**：${input.claimedByName}` : null,
@@ -105,6 +107,58 @@ export function orderCard(input: {
         },
         buttons.length > 0 ? { type: "action-group", elements: buttons } : null
       ].filter(Boolean)
+    }
+  ];
+}
+
+export function incomeCard(input: {
+  displayName: string;
+  todayTotal: number;
+  monthTotal: number;
+  shiftTotal: number;
+  recent: Array<{ amount: number; type: string; note: string | null; createdAt: number }>;
+}) {
+  const recentLines =
+    input.recent.length === 0
+      ? "_今日暂无入账_"
+      : input.recent
+          .map((r) => {
+            const time = new Date(r.createdAt).toLocaleString("zh-CN", { hour12: false });
+            const label = settlementTypeLabel(r.type);
+            const note = r.note ? ` · ${r.note}` : "";
+            return `- [${time}] ${label} ¥${r.amount.toFixed(2)}${note}`;
+          })
+          .join("\n");
+
+  return [
+    {
+      type: "card",
+      theme: "success",
+      size: "lg",
+      modules: [
+        {
+          type: "header",
+          text: { type: "plain-text", content: `💰 ${input.displayName} 的收益` }
+        },
+        {
+          type: "section",
+          text: {
+            type: "kmarkdown",
+            content: [
+              `**本班收益**：¥${input.shiftTotal.toFixed(2)}`,
+              `**今日收益**：¥${input.todayTotal.toFixed(2)}`,
+              `**本月收益**：¥${input.monthTotal.toFixed(2)}`
+            ].join("\n")
+          }
+        },
+        {
+          type: "section",
+          text: {
+            type: "kmarkdown",
+            content: `**最近入账（今日）**\n${recentLines}`
+          }
+        }
+      ]
     }
   ];
 }
@@ -166,6 +220,21 @@ function statusLabel(status: string) {
       return "已取消";
     default:
       return status;
+  }
+}
+
+function settlementTypeLabel(type: string) {
+  switch (type) {
+    case "order_commission":
+      return "订单提成";
+    case "hourly":
+      return "时薪";
+    case "bonus":
+      return "奖励";
+    case "adjustment":
+      return "调整";
+    default:
+      return type;
   }
 }
 

@@ -13,6 +13,7 @@ import { attachSessionToOrder, findOpenSession } from "../domain/voice.js";
 import { clockResultCard, notInVoiceCard, orderCard } from "../kook/cards.js";
 import type { KookClient } from "../kook/client.js";
 import type { KookButtonEvent } from "../kook/types.js";
+import { settleHourlyForShift, settleOrderCommission } from "../services/settlement.js";
 import { moveEmployeeToVoice } from "../services/voiceMove.js";
 
 export async function handleButton(kook: KookClient, event: KookButtonEvent) {
@@ -88,11 +89,16 @@ async function handleShift(kook: KookClient, event: KookButtonEvent, action: str
       return;
     }
     const closed = closeShift(open.shiftId, Date.now());
+    const hourly = closed ? settleHourlyForShift(closed) : null;
+    const lines = closed
+      ? [
+          `本班语音时长：${formatDuration(closed.totalVoiceMs)}`,
+          hourly ? `本班时薪结算：¥${hourly.amount.toFixed(2)}` : null
+        ].filter(Boolean)
+      : ["已下班"];
     await kook.sendCard(event.channelId, clockResultCard({
       title: "✅ 下班成功",
-      message: closed
-        ? `本班语音时长：${formatDuration(closed.totalVoiceMs)}`
-        : "已下班",
+      message: lines.join("\n"),
       ok: true
     }));
   }
@@ -148,7 +154,14 @@ async function handleOrder(kook: KookClient, event: KookButtonEvent, action: str
       await kook.sendText(event.channelId, "⚠️ 只能完成自己接的订单");
       return;
     }
+    const settlement = settleOrderCommission(done);
     await updateOrderCard(kook, done, employee.displayName);
+    if (settlement) {
+      await kook.sendText(
+        event.channelId,
+        `💰 已入账：¥${settlement.amount.toFixed(2)}（基数 ¥${(settlement.baseAmount ?? 0).toFixed(2)} × ${((settlement.rate ?? 0) * 100).toFixed(0)}%）`
+      );
+    }
     return;
   }
 
@@ -176,6 +189,7 @@ async function sendOrders(kook: KookClient, channelId: string) {
         title: order.title,
         customerNote: order.customerNote,
         targetVoiceChannelId: order.targetVoiceChannelId,
+        price: order.price,
         status: order.status,
         claimedByName: null
       })
@@ -190,6 +204,7 @@ async function updateOrderCard(kook: KookClient, order: ReturnType<typeof findOr
     title: order.title,
     customerNote: order.customerNote,
     targetVoiceChannelId: order.targetVoiceChannelId,
+    price: order.price,
     status: order.status,
     claimedByName
   });

@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS orders (
   title                 TEXT NOT NULL,
   customer_note         TEXT,
   target_voice_channel  TEXT NOT NULL,
+  price                 REAL NOT NULL DEFAULT 0,
+  commission_rate       REAL,  -- NULL 表示用全局默认
   status                TEXT NOT NULL DEFAULT 'open', -- open | claimed | completed | cancelled
   claimed_by            TEXT,
   claimed_at            INTEGER,
@@ -51,3 +53,29 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_claimed_by ON orders(claimed_by, status);
+
+-- 结算记录：员工每一笔收益的明细
+CREATE TABLE IF NOT EXISTS settlements (
+  settlement_id TEXT PRIMARY KEY,
+  kook_user_id  TEXT NOT NULL,
+  order_id      TEXT,
+  shift_id      TEXT,
+  type          TEXT NOT NULL,  -- order_commission | hourly | bonus | adjustment
+  amount        REAL NOT NULL,  -- 员工实际入账金额（元）
+  base_amount   REAL,           -- 计算基数（订单价或工时小时数）
+  rate          REAL,           -- 提成比例或时薪
+  note          TEXT,
+  created_at    INTEGER NOT NULL,
+  FOREIGN KEY (kook_user_id) REFERENCES employees(kook_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_settlements_user ON settlements(kook_user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_settlements_shift ON settlements(shift_id);
+CREATE INDEX IF NOT EXISTS idx_settlements_order ON settlements(order_id);
+
+-- 规则：在线可调的 KV 配置
+CREATE TABLE IF NOT EXISTS rules (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT
+);

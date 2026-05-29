@@ -3,18 +3,25 @@ import { bindEmployee, approveEmployee, findEmployee, listEmployees } from "../d
 import { createOrder, listOpenOrders } from "../domain/orders.js";
 import type { KookClient } from "../kook/client.js";
 import type { KookMessageEvent } from "../kook/types.js";
-import { homeCard, orderCard } from "../kook/cards.js";
+import { homeCard, incomeCard, orderCard } from "../kook/cards.js";
 import { findOpenShift } from "../domain/shifts.js";
+import { RULE_KEYS, getDefaultCommissionRate, getHourlyRate, listRules, setRule } from "../domain/rules.js";
+import { listSettlements, sumAmount } from "../domain/settlements.js";
 
 const HELP = [
   "可用命令：",
   "`/cm` 或 `/club` 显示工作台",
   "`/cm bind <昵称>` 绑定账号（首次使用）",
   "`/cm orders` 查看待接订单",
+  "`/cm income` 查看本人收益",
   "管理员：",
   "`/cm approve <kook_user_id>` 通过审核",
   "`/cm staff` 列出员工",
-  "`/cm new <频道ID> <标题> [备注]` 发布订单"
+  "`/cm new <频道ID> <标题> [金额] [备注]` 发布订单",
+  "`/cm rate` 查看规则",
+  "`/cm rate commission <0~1>` 设置默认提成比例",
+  "`/cm rate hourly <元/小时>` 设置时薪（0 表示不按时薪结算）",
+  "`/cm income <kook_user_id>` 查看他人收益"
 ].join("\n");
 
 export async function handleMessage(kook: KookClient, event: KookMessageEvent) {
@@ -89,15 +96,20 @@ export async function handleMessage(kook: KookClient, event: KookMessageEvent) {
       await kook.sendText(event.channelId, "⛔ 仅管理员可发单");
       return;
     }
-    const [channelId, title, ...rest] = command.args;
+    const [channelId, title, priceArg, ...rest] = command.args;
     if (!channelId || !title) {
-      await kook.sendText(event.channelId, "用法：`/cm new <频道ID> <标题> [备注]`");
+      await kook.sendText(event.channelId, "用法：`/cm new <频道ID> <标题> [金额] [备注]`");
       return;
     }
+    const parsedPrice = priceArg !== undefined ? Number(priceArg) : NaN;
+    const isPriceToken = priceArg !== undefined && Number.isFinite(parsedPrice);
+    const price = isPriceToken ? Math.max(0, parsedPrice) : 0;
+    const note = (isPriceToken ? rest : [priceArg, ...rest].filter((x) => x !== undefined)).join(" ");
     const order = createOrder({
       title,
-      customerNote: rest.join(" ") || null,
+      customerNote: note || null,
       targetVoiceChannelId: channelId,
+      price,
       createdBy: event.authorId
     });
     const msgId = await kook.sendCard(
@@ -107,6 +119,7 @@ export async function handleMessage(kook: KookClient, event: KookMessageEvent) {
         title: order.title,
         customerNote: order.customerNote,
         targetVoiceChannelId: order.targetVoiceChannelId,
+        price: order.price,
         status: order.status,
         claimedByName: null
       })
@@ -118,7 +131,102 @@ export async function handleMessage(kook: KookClient, event: KookMessageEvent) {
     return;
   }
 
+  if (command.action === "rate") {
+    if (!isAdmin) {
+      await kook.sendText(event.channelId, "⛔ 仅管理员可用");
+      return;
+    }
+    const [sub, valueArg] = command.args;
+    if (!sub) {
+      const lines = listRules().map(
+        (r) => `- ${r.key} = ${r.value}${r.isDefault ? "（默认）" : ""}`
+      );
+      const summary = [
+        "当前规则：",
+        ...lines,
+        "",
+        `默认提成：${(getDefaultCommissionRate() * 100).toFixed(0)}%`,
+        `时薪：¥${getHourlyRate().toFixed(2)}/小时${getHourlyRate() === 0 ? "（关闭）" : ""}`
+      ];
+      await kook.sendText(event.channelId, summary.join("\n"));
+      return;
+    }
+    if (sub === "commission") {
+      const value = Number(valueArg);
+      if (!Number.isFinite(value) || value < 0 || value > 1) {
+        await kook.sendText(event.channelId, "提成比例需为 0~1 的数字");
+        return;
+      }
+      setRule(RULE_KEYS.DEFAULT_COMMISSION_RATE, String(value), event.authorId);
+      await kook.sendText(event.channelId, `✅ 默认提成比例 → ${(value * 100).toFixed(0)}%`);
+      return;
+    }
+    if (sub === "hourly") {
+      const value = Number(valueArg);
+      if (!Number.isFinite(value) || value < 0) {
+        await kook.sendText(event.channelId, "时薪需为 ≥0 的数字");
+        return;
+      }
+      setRule(RULE_KEYS.HOURLY_RATE, String(value), event.authorId);
+      await kook.sendText(event.channelId, `✅ 时薪 → ¥${value.toFixed(2)}/小时${value === 0 ? "（已关闭）" : ""}`);
+      return;
+    }
+    await kook.sendText(event.channelId, "用法：`/cm rate` 或 `/cm rate commission <0~1>` 或 `/cm rate hourly <元>`");
+    return;
+  }
+
+  if (command.action === "income") {
+    const targetId = command.args[0];
+    if (targetId && !isAdmin && targetId !== event.authorId) {
+      await kook.sendText(event.channelId, "⛔ 仅管理员可查他人收益");
+      return;
+    }
+    const userId = targetId ?? event.authorId;
+    const employee = findEmployee(userId);
+    if (!employee) {
+      await kook.sendText(event.channelId, "⚠️ 该用户未绑定");
+      return;
+    }
+    await sendIncome(kook, event.channelId, employee.kookUserId, employee.displayName);
+    return;
+  }
+
   await kook.sendText(event.channelId, HELP);
+}
+
+async function sendIncome(kook: KookClient, channelId: string, userId: string, displayName: string) {
+  const now = Date.now();
+  const dayStart = startOfDay(now);
+  const monthStart = startOfMonth(now);
+
+  const today = listSettlements({ kookUserId: userId, since: dayStart });
+  const month = listSettlements({ kookUserId: userId, since: monthStart });
+  const openShift = findOpenShift(userId);
+  const shift = openShift ? listSettlements({ kookUserId: userId, shiftId: openShift.shiftId }) : [];
+
+  await kook.sendCard(
+    channelId,
+    incomeCard({
+      displayName,
+      todayTotal: sumAmount(today),
+      monthTotal: sumAmount(month),
+      shiftTotal: sumAmount(shift),
+      recent: today.slice(0, 5)
+    })
+  );
+}
+
+function startOfDay(ts: number) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function startOfMonth(ts: number) {
+  const d = new Date(ts);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
 async function sendHome(kook: KookClient, userId: string, fallbackName: string) {
@@ -157,6 +265,7 @@ async function sendOrderList(kook: KookClient, channelId: string) {
         title: order.title,
         customerNote: order.customerNote,
         targetVoiceChannelId: order.targetVoiceChannelId,
+        price: order.price,
         status: order.status,
         claimedByName: null
       })
