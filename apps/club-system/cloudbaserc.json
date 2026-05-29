@@ -1,0 +1,41 @@
+{
+  "envId": "",
+  "framework": {
+    "name": "kook-club-system",
+    "plugins": {
+      "client": {
+        "use": "@cloudbase/framework-plugin-container",
+        "inputs": {
+          "serviceName": "club-system",
+          "servicePath": "/club-system",
+          "localPath": "./",
+          "uploadType": "package",
+          "dockerfile": "Dockerfile",
+          "buildDir": "./",
+          "containerPort": 80,
+          "minNum": 1,
+          "maxNum": 1,
+          "cpu": 0.25,
+          "mem": 0.5,
+          "policyType": "cpu",
+          "policyThreshold": 80,
+          "envParams": {
+            "CLUB_KOOK_BOT_TOKEN": "",
+            "CLUB_GUILD_ID": "",
+            "CLUB_COMMAND_CHANNEL_ID": "",
+            "CLUB_STANDBY_VOICE_CHANNEL_ID": "",
+            "CLUB_ADMIN_USER_IDS": "",
+            "CLUB_DB_PATH": "/app/data/club.db"
+          },
+          "volumeMounts": [
+            {
+              "name": "club-data",
+              "mountPath": "/app/data",
+              "readOnly": false
+            }
+          ]
+        }
+      }
+    }
+  }
+}

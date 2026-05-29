@@ -1,0 +1,12 @@
+services:
+  club-system:
+    build: .
+    image: kook-club-system:latest
+    container_name: kook-club-system
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # SQLite 数据持久化：换机器时把 data 目录搬走就行
+      - ./data:/app/data
+    # 服务不监听端口（纯 KOOK Gateway 出站连接），所以不用映射端口
