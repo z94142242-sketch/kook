@@ -10,10 +10,17 @@ let dbInstance: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
+  return initDb(config.dbPath);
+}
 
-  fs.mkdirSync(path.dirname(config.dbPath), { recursive: true });
-  const db = new Database(config.dbPath);
-  db.pragma("journal_mode = WAL");
+export function initDb(dbPath: string): Database.Database {
+  if (dbInstance) dbInstance.close();
+
+  if (dbPath !== ":memory:") {
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  }
+  const db = new Database(dbPath);
+  if (dbPath !== ":memory:") db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
   const schemaPath = path.join(__dirname, "schema.sql");
@@ -28,4 +35,10 @@ export function closeDb() {
     dbInstance.close();
     dbInstance = null;
   }
+}
+
+/** 仅供测试使用：丢弃当前连接并重新建一个内存库 */
+export function resetDbForTest() {
+  closeDb();
+  initDb(":memory:");
 }
