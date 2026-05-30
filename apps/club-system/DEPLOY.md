@@ -111,11 +111,128 @@ pm2 startup
 
 ---
 
+## 选项 4：Windows 云服务器（已有 Codex bridge 跑着的那台）
+
+**适合：** 你已经有一台 Windows 云服务器（24h 开机 + 公网 IP），上面跑着 `kook-codex-bridge`，想顺便把 club-system 加进去。
+
+> 两个应用完全独立：不同的 KOOK Bot Token、不同的数据文件、不同的端口（Codex bridge 不监听端口，club-system 占 3000），可以放心同台部署。
+
+### 一次性准备
+
+1. **再注册一个 KOOK 机器人**给 club-system 用（不能跟 Codex bridge 共用同一个 Bot，一个 Bot 只能被一个进程连接 Gateway）。把新 Bot 邀请到俱乐部所在的 KOOK 服务器，给它「读写消息 + 搬运语音用户」权限。
+2. **域名解析**：把一个二级域名（如 `api.your-domain.com`）解析到云服务器公网 IP。
+3. **云服务商安全组放行端口** 80（HTTPS 证书校验）和 443（HTTPS）。Windows 防火墙里也放行这两个端口。
+
+### 安装 + 启动 club-system
+
+PowerShell 里：
+
+```powershell
+# 假设仓库克隆在 C:\Users\Administrator\Documents\
+cd C:\Users\Administrator\Documents\kook\apps\club-system
+
+# 装依赖（如果机器上没装 Node 22，先去 nodejs.org 装）
+npm ci
+
+# 复制 .env 模板并填值
+Copy-Item .env.example .env
+notepad .env
+# 必填：
+#   CLUB_KOOK_BOT_TOKEN   ← 新 Bot 的 Token
+#   CLUB_GUILD_ID         ← 俱乐部所在 KOOK 服务器 ID
+#   CLUB_COMMAND_CHANNEL_ID
+#   CLUB_STANDBY_VOICE_CHANNEL_ID
+#   CLUB_ADMIN_USER_IDS   ← 管理员 KOOK 用户 ID
+#   CLUB_WX_APP_ID        ← 小程序 AppID
+#   CLUB_WX_APP_SECRET    ← 小程序 Secret
+#   CLUB_DEV_LOGIN_ENABLED=false   ← 生产必须 false
+
+npm run build
+
+# 先手动跑一遍确认能起来
+node dist/index.js
+# 看到：
+#   [club] db ready at ...
+#   [club] http api listening on 0.0.0.0:3000
+#   [club] kook client started
+# 就 Ctrl+C 停掉，准备装成 Windows 服务
+```
+
+### 装成 Windows 服务（开机自启 + 进程守护）
+
+用 `pm2` + `pm2-windows-service`：
+
+```powershell
+npm install -g pm2 pm2-windows-service
+
+# 注册 pm2 自己为 Windows 服务
+pm2-service-install -n PM2
+
+# 把 club-system 交给 pm2 管
+cd C:\Users\Administrator\Documents\kook\apps\club-system
+pm2 start dist/index.js --name club-system
+pm2 save
+```
+
+之后重启 Windows，club-system 会自动跟 pm2 一起回来。
+
+常用命令：
+```powershell
+pm2 list                  # 看进程
+pm2 logs club-system      # 看日志
+pm2 restart club-system   # 重启
+```
+
+### 装 Caddy 做 HTTPS 反代
+
+Caddy 单文件，自动签发 + 续期 Let's Encrypt 证书，是 Windows 上最省事的方案。
+
+1. 去 https://caddyserver.com/download 下载 `caddy.exe` Windows 版，放到 `C:\caddy\`
+2. 在同目录新建 `Caddyfile`（**无后缀**），内容：
+
+   ```caddy
+   api.your-domain.com {
+       reverse_proxy localhost:3000
+   }
+   ```
+
+   把 `api.your-domain.com` 改成你自己的域名。
+
+3. 装成 Windows 服务（用 nssm 最简单）：
+
+   ```powershell
+   # 下载 nssm.exe 放到 C:\caddy\ 里
+   cd C:\caddy
+   .\nssm.exe install Caddy "C:\caddy\caddy.exe" "run --config C:\caddy\Caddyfile"
+   .\nssm.exe set Caddy AppDirectory "C:\caddy"
+   .\nssm.exe start Caddy
+   ```
+
+4. 验证：浏览器打开 `https://api.your-domain.com/health`，看到 `{"ok":true,...}` 就成了。Caddy 第一次会自动去 Let's Encrypt 签证书，等 10 秒左右。
+
+### 升级流程
+
+```powershell
+cd C:\Users\Administrator\Documents\kook
+git pull
+cd apps\club-system
+npm ci
+npm run build
+pm2 restart club-system
+```
+
+### Codex bridge 那边动不动？
+
+完全不用动。两个应用独立的代码目录、独立的 .env、独立的 KOOK Bot Token、独立的数据文件。
+
+---
+
 ## 接微信小程序所需的额外步骤
 
 后端纯 KOOK Gateway 模式跑通后，再接小程序需要以下几步：
 
 ### 1. 准备一个 HTTPS 域名（**硬性要求**）
+
 
 微信小程序只接受 HTTPS 接口。三种典型做法：
 
