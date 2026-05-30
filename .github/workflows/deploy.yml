@@ -1,0 +1,38 @@
+name: Deploy to 雨云
+
+# 触发条件：
+# - main 分支有新 commit（PR 合并时自动）
+# - 仓库 Actions 页面手动点「Run workflow」（手机 GitHub app 也有这个按钮）
+#
+# 防御：只有 repository variable AUTO_DEPLOY_ENABLED=true 时才真跑 push 触发，
+# 否则只能手动触发。这样初次设置 runner 之前 push 到 main 不会留一堆失败 run。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一时间只允许一个部署在跑，新的来了排队
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: 部署到雨云 Windows 服务器
+    runs-on: [self-hosted, Windows]
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY_ENABLED == 'true' }}
+    timeout-minutes: 15
+
+    steps:
+      - name: 运行 deploy.ps1
+        shell: pwsh
+        run: |
+          # 进到服务器上人工克隆的仓库目录（不用 actions/checkout，免得跟人工目录脱节）
+          $repo = $env:KOOK_REPO_DIR
+          if (-not $repo) { $repo = 'C:\Users\Administrator\Documents\kook' }
+          if (-not (Test-Path "$repo\package.json")) {
+            Write-Error "仓库目录 $repo 不存在或不是 kook 仓库。在 runner 服务的环境变量里设 KOOK_REPO_DIR 指正确路径。"
+            exit 1
+          }
+          Set-Location $repo
+          .\scripts\deploy.ps1
