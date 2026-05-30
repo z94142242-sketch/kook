@@ -241,3 +241,48 @@ data/tasks.json
 6. 非授权用户发命令无响应。
 7. 非白名单频道发命令无响应。
 8. Codex 只能操作白名单项目目录。
+
+---
+
+## 启用 club-system 俱乐部管理（可选）
+
+从 v0.2 起，本仓库还内置一个**俱乐部 / 工作室管理后台 + 微信小程序 API**。它跟 Codex bridge **跑在同一个进程里、共用同一个 KOOK Bot**（一条 Gateway 连接），所以多开一套功能不需要再注册第二个机器人，也不需要起第二个 Node 进程。
+
+### 关掉时（默认）
+
+`.env` 里 `CLUB_ENABLED=false`（默认）或者不写——进程行为跟以前一样，纯 Codex bridge。
+
+### 开启
+
+在 **同一个 `.env`** 里追加：
+
+```env
+CLUB_ENABLED=true
+CLUB_GUILD_ID=                       # 俱乐部所在 KOOK 服务器 ID
+CLUB_COMMAND_CHANNEL_ID=             # 员工发命令的文字频道 ID
+CLUB_STANDBY_VOICE_CHANNEL_ID=       # 待命语音房 ID
+CLUB_ADMIN_USER_IDS=                 # 管理员 KOOK 用户 ID，逗号分隔
+CLUB_COMMAND_PREFIXES=/club,/cm
+CLUB_DB_PATH=./data/club.db
+
+# 小程序后端 HTTP API
+CLUB_HTTP_ENABLED=true
+CLUB_HTTP_PORT=3000
+CLUB_HTTP_HOST=0.0.0.0
+CLUB_DEV_LOGIN_ENABLED=false         # 生产必须 false
+CLUB_SESSION_TTL_HOURS=720
+
+# 微信小程序
+CLUB_WX_APP_ID=
+CLUB_WX_APP_SECRET=
+```
+
+**注意**：Bot 必须同时被邀请进 Codex 那个频道 **和** 俱乐部的命令频道 + 语音频道，并开启相应权限（读写消息 + 搬运语音用户）。
+
+### 启动后
+
+- KOOK Gateway 会按频道分流：Codex 频道走 Codex bridge，俱乐部命令频道走 club-system，语音事件走 club-system
+- 端口 3000 上会起一个 HTTP API 给微信小程序调用（详见 `apps/club-system/DEPLOY.md` 里的小程序对接章节）
+- 数据写到 `data/club.db`（SQLite）
+
+详细功能、命令列表、小程序对接：见 `apps/club-system/README.md` 和 `apps/club-system/DEPLOY.md`。

@@ -1,19 +1,32 @@
+// club-system 已合并到根进程：本文件不再 main()，而是导出初始化函数 + 三个事件 handler，
+// 由根目录 src/index.ts 调用。
 import { serve, type ServerType } from "@hono/node-server";
 import { config } from "./config.js";
 import { closeDb, getDb } from "./db/database.js";
 import { purgeExpiredSessions } from "./domain/sessions.js";
-import { handleButton } from "./handlers/button.js";
-import { handleMessage } from "./handlers/message.js";
-import { handleVoiceEvent } from "./handlers/voiceEvent.js";
 import { buildHttpApp } from "./http/server.js";
-import { KookClient } from "./kook/client.js";
 
-async function main() {
-  // 初始化数据库（建表）
+export { handleButton } from "./handlers/button.js";
+export { handleMessage } from "./handlers/message.js";
+export { handleVoiceEvent } from "./handlers/voiceEvent.js";
+export { config as clubConfig } from "./config.js";
+
+export type ClubRuntime = {
+  httpServer?: ServerType;
+  cleanupTimer: NodeJS.Timeout;
+  shutdown: () => void;
+};
+
+/**
+ * 初始化 club-system：建数据库、启动小程序 HTTP API、起定时清理。
+ * 返回的 runtime 由根进程负责在 SIGINT/SIGTERM 时调用 shutdown。
+ *
+ * KOOK Gateway 事件由根进程统一接收后按频道分发到本模块的 handler。
+ */
+export function startClubSystem(): ClubRuntime {
   getDb();
   console.log(`[club] db ready at ${config.dbPath}`);
 
-  // HTTP API（给小程序调用）先起来——独立于 KOOK Gateway 可用性
   let httpServer: ServerType | undefined;
   if (config.http.enabled) {
     httpServer = serve({
@@ -24,22 +37,6 @@ async function main() {
     console.log(`[club] http api listening on ${config.http.host}:${config.http.port}`);
   }
 
-  // KOOK Gateway 长连接 worker
-  let kook!: KookClient;
-  kook = new KookClient(async (event) => {
-    try {
-      if (event.kind === "message") await handleMessage(kook, event);
-      else if (event.kind === "button") await handleButton(kook, event);
-      else if (event.kind === "voice") handleVoiceEvent(event);
-    } catch (err) {
-      console.error(`[club] handler failed: ${err instanceof Error ? err.message : err}`);
-    }
-  });
-  kook.connect()
-    .then(() => console.log("[club] kook client started"))
-    .catch((err) => console.error(`[club] kook connect failed: ${err instanceof Error ? err.message : err}`));
-
-  // 每天清理过期 session
   const cleanupTimer = setInterval(() => {
     const cleaned = purgeExpiredSessions();
     if (cleaned > 0) console.log(`[club] purged ${cleaned} expired sessions`);
@@ -47,16 +44,9 @@ async function main() {
 
   const shutdown = () => {
     clearInterval(cleanupTimer);
-    kook.close();
     httpServer?.close();
     closeDb();
-    process.exit(0);
   };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
-}
 
-main().catch((err) => {
-  console.error(`[club] startup failed: ${err instanceof Error ? err.message : err}`);
-  process.exit(1);
-});
+  return { httpServer, cleanupTimer, shutdown };
+}
