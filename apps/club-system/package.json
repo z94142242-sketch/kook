@@ -12,8 +12,10 @@
     "sim": "tsx src/test/sim.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^1.14.0",
     "better-sqlite3": "^11.7.0",
     "dotenv": "^17.2.3",
+    "hono": "^4.6.0",
     "ws": "^8.18.3",
     "zod": "^4.2.1"
   },

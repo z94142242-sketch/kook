@@ -79,3 +79,23 @@ CREATE TABLE IF NOT EXISTS rules (
   updated_at INTEGER NOT NULL,
   updated_by TEXT
 );
+
+-- 微信小程序用户：openid 维度，可绑定到 employees
+CREATE TABLE IF NOT EXISTS wx_users (
+  openid       TEXT PRIMARY KEY,
+  unionid      TEXT,
+  kook_user_id TEXT,
+  created_at   INTEGER NOT NULL,
+  FOREIGN KEY (kook_user_id) REFERENCES employees(kook_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_wx_users_kook ON wx_users(kook_user_id);
+
+-- 会话：HTTP API 用的不透明 token
+CREATE TABLE IF NOT EXISTS sessions (
+  token       TEXT PRIMARY KEY,
+  openid      TEXT NOT NULL,
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL,
+  FOREIGN KEY (openid) REFERENCES wx_users(openid)
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_openid ON sessions(openid);

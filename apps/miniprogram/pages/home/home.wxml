@@ -1,0 +1,39 @@
+<view class="container">
+  <!-- 未绑定提示 -->
+  <view wx:if="{{!me.bound}}" class="card">
+    <view class="title">👋 欢迎，请先绑定 KOOK 账号</view>
+    <view class="subtle">绑定后才能打卡、接单、查收益</view>
+    <view class="btn" bindtap="goBind">去绑定</view>
+  </view>
+
+  <!-- 已绑定 -->
+  <block wx:if="{{me.bound}}">
+    <view class="card">
+      <view class="title">{{me.employee.displayName}}</view>
+      <view class="row">
+        <text>状态</text>
+        <text>{{status.onShift ? '🟢 上班中' : '⚪ 已下班'}}</text>
+      </view>
+      <view wx:if="{{status.shift}}" class="row">
+        <text>本班语音</text>
+        <text>{{shiftVoiceText}}</text>
+      </view>
+      <view class="row">
+        <text>今日收益</text>
+        <text>{{todayText}}</text>
+      </view>
+
+      <view wx:if="{{!status.onShift}}" class="btn" bindtap="clockIn">上班打卡</view>
+      <view wx:else class="btn warn" bindtap="clockOut">下班打卡</view>
+    </view>
+
+    <view class="card">
+      <view class="row">
+        <text class="title">今日已完成单数</text>
+        <text>—</text>
+      </view>
+      <view class="btn secondary" bindtap="goOrders">查看待接订单</view>
+      <view class="btn secondary" bindtap="goIncome">查看收益明细</view>
+    </view>
+  </block>
+</view>

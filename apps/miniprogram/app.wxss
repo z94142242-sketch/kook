@@ -1,0 +1,90 @@
+page {
+  background: #f7f8fa;
+  color: #1f1f1f;
+  font-size: 28rpx;
+}
+
+.container {
+  padding: 32rpx 28rpx;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.subtle {
+  color: #888;
+  font-size: 24rpx;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+}
+
+.btn {
+  background: #1f6feb;
+  color: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx 0;
+  text-align: center;
+  margin: 16rpx 0;
+}
+
+.btn.secondary {
+  background: #f0f3f6;
+  color: #1f6feb;
+}
+
+.btn.warn {
+  background: #faad14;
+}
+
+.btn.danger {
+  background: #f5222d;
+}
+
+.btn.disabled {
+  background: #ccc;
+  color: #fff;
+}
+
+.empty {
+  text-align: center;
+  color: #aaa;
+  padding: 64rpx 0;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+}
+
+.tag-open {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.tag-claimed {
+  background: #fff7e6;
+  color: #fa8c16;
+}
+
+.tag-completed {
+  background: #f0f5ff;
+  color: #2f54eb;
+}

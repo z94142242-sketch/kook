@@ -1,0 +1,23 @@
+<view class="container">
+  <view wx:if="{{orders.length === 0}}" class="empty">暂无待接订单</view>
+  <view
+    wx:for="{{orders}}"
+    wx:key="orderId"
+    class="card"
+  >
+    <view class="row">
+      <text class="title">{{item.title}}</text>
+      <view class="tag tag-open">待接单</view>
+    </view>
+    <view class="row">
+      <text class="subtle">金额</text>
+      <text>{{item._priceText}}</text>
+    </view>
+    <view class="row">
+      <text class="subtle">语音频道</text>
+      <text style="font-family: monospace">{{item.targetVoiceChannelId}}</text>
+    </view>
+    <view wx:if="{{item.customerNote}}" class="subtle">备注：{{item.customerNote}}</view>
+    <view class="btn" data-id="{{item.orderId}}" bindtap="claim">接单</view>
+  </view>
+</view>

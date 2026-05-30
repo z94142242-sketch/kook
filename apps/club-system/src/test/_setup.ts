@@ -5,6 +5,7 @@ process.env.CLUB_COMMAND_CHANNEL_ID ??= "ch-cmd";
 process.env.CLUB_STANDBY_VOICE_CHANNEL_ID ??= "ch-standby";
 process.env.CLUB_ADMIN_USER_IDS ??= "admin1";
 process.env.CLUB_DB_PATH ??= ":memory:";
+process.env.CLUB_DEV_LOGIN_ENABLED ??= "true";
 
 // 让 better-sqlite3 在 CI 上少打日志
 process.env.CI ??= "true";
