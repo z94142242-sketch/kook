@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/db && cp src/db/schema.sql dist/db/schema.sql",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test 'src/test/*.test.ts'",
     "sim": "tsx src/test/sim.ts"

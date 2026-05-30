@@ -13,6 +13,17 @@ async function main() {
   getDb();
   console.log(`[club] db ready at ${config.dbPath}`);
 
+  // HTTP API（给小程序调用）先起来——独立于 KOOK Gateway 可用性
+  let httpServer: ServerType | undefined;
+  if (config.http.enabled) {
+    httpServer = serve({
+      fetch: buildHttpApp().fetch,
+      hostname: config.http.host,
+      port: config.http.port
+    });
+    console.log(`[club] http api listening on ${config.http.host}:${config.http.port}`);
+  }
+
   // KOOK Gateway 长连接 worker
   let kook!: KookClient;
   kook = new KookClient(async (event) => {
@@ -24,19 +35,9 @@ async function main() {
       console.error(`[club] handler failed: ${err instanceof Error ? err.message : err}`);
     }
   });
-  await kook.connect();
-  console.log("[club] kook client started");
-
-  // HTTP API（给小程序调用）
-  let httpServer: ServerType | undefined;
-  if (config.http.enabled) {
-    httpServer = serve({
-      fetch: buildHttpApp().fetch,
-      hostname: config.http.host,
-      port: config.http.port
-    });
-    console.log(`[club] http api listening on ${config.http.host}:${config.http.port}`);
-  }
+  kook.connect()
+    .then(() => console.log("[club] kook client started"))
+    .catch((err) => console.error(`[club] kook connect failed: ${err instanceof Error ? err.message : err}`));
 
   // 每天清理过期 session
   const cleanupTimer = setInterval(() => {

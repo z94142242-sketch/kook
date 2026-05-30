@@ -16,9 +16,6 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
-# 把 schema.sql 复制到 dist 里（构建不会自动带 .sql）
-RUN cp src/db/schema.sql dist/db/schema.sql
-
 # 砍掉 devDependencies
 RUN npm prune --omit=dev
 
@@ -42,5 +39,8 @@ USER app
 
 # 默认 DB 路径写到 /app/data，部署时挂载这个目录即可持久化
 ENV CLUB_DB_PATH=/app/data/club.db
+
+# HTTP API 默认端口
+EXPOSE 3000
 
 CMD ["node", "dist/index.js"]

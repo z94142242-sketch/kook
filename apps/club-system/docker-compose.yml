@@ -6,7 +6,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    ports:
+      # HTTP API（给微信小程序调用）。生产环境前面套 Nginx / Caddy 做 HTTPS。
+      - "3000:3000"
     volumes:
       # SQLite 数据持久化：换机器时把 data 目录搬走就行
       - ./data:/app/data
-    # 服务不监听端口（纯 KOOK Gateway 出站连接），所以不用映射端口

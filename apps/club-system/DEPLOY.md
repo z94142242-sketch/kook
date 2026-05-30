@@ -111,6 +111,57 @@ pm2 startup
 
 ---
 
+## 接微信小程序所需的额外步骤
+
+后端纯 KOOK Gateway 模式跑通后，再接小程序需要以下几步：
+
+### 1. 准备一个 HTTPS 域名（**硬性要求**）
+
+微信小程序只接受 HTTPS 接口。三种典型做法：
+
+- **轻量服务器 + Caddy（最省事）** — Caddy 会自动申请 + 续期 Let's Encrypt 证书：
+  ```caddy
+  api.your-domain.com {
+      reverse_proxy localhost:3000
+  }
+  ```
+- **轻量服务器 + Nginx + certbot** — 手动签发 + 配置反代到 `localhost:3000`
+- **CloudBase 云托管** — 自带 HTTPS，把上面 `cloudbaserc.json` 的 `containerPort` 改成 `3000` 即可
+
+### 2. 在微信公众平台添加服务器域名白名单
+
+登录 [小程序后台](https://mp.weixin.qq.com/) → 开发管理 → 开发设置 → 服务器域名 → request 合法域名加入 `https://api.your-domain.com`
+
+### 3. 配置小程序 AppID + Secret
+
+在后端 `.env` 里填：
+```
+CLUB_WX_APP_ID=wx开头的小程序 AppID
+CLUB_WX_APP_SECRET=小程序后台拿的 Secret
+CLUB_DEV_LOGIN_ENABLED=false        # 生产必须 false，否则任何人都能伪造 openid 登录
+```
+
+### 4. 改小程序 apiBase
+
+打开 `apps/miniprogram/app.js`，把 `apiBase` 改成你的 HTTPS 域名：
+```js
+apiBase: "https://api.your-domain.com"
+```
+
+### 5. 上传 + 提审
+
+微信开发者工具里上传代码 → 小程序后台提交审核。
+
+### 健康检查
+
+部署完成后任何时候都可以：
+```bash
+curl https://api.your-domain.com/health
+# {"ok":true,"ts":1716000000000}
+```
+
+---
+
 ## 数据备份
 
 **只需备份一个文件：** `apps/club-system/data/club.db`
