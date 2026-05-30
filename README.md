@@ -282,7 +282,44 @@ CLUB_WX_APP_SECRET=
 ### 启动后
 
 - KOOK Gateway 会按频道分流：Codex 频道走 Codex bridge，俱乐部命令频道走 club-system，语音事件走 club-system
-- 端口 3000 上会起一个 HTTP API 给微信小程序调用（详见 `apps/club-system/DEPLOY.md` 里的小程序对接章节）
+- 端口 3000 上会起一个 HTTP API 给微信小程序调用
 - 数据写到 `data/club.db`（SQLite）
 
-详细功能、命令列表、小程序对接：见 `apps/club-system/README.md` 和 `apps/club-system/DEPLOY.md`。
+---
+
+## 仓库结构
+
+```
+src/                 ← 唯一的 Node 后端，单进程
+├─ index.ts            orchestrator 入口（KOOK Gateway 分发）
+├─ config.ts           合并配置（codex 字段顶层 + club 字段在 .club.*）
+├─ kook/               共享 KOOK Gateway 客户端
+├─ codex/              Codex bridge 子系统
+└─ club/               俱乐部管理子系统（数据库、领域、HTTP API）
+
+apps/miniprogram/   ← 微信小程序员工端（前端，不在 Node 进程内）
+scripts/deploy.ps1  ← 服务器一键上线脚本（Windows / PowerShell）
+data/               ← 运行时数据：tasks.json（codex）+ club.db（club）
+```
+
+入口：开发 `npm run dev`，生产 `node dist/index.js`（构建产物在 `dist/`）。
+
+---
+
+## 服务器升级（雨云 Windows）
+
+RDP 上去 PowerShell 跑：
+
+```powershell
+cd C:\Users\Administrator\Documents\kook   # 你实际的仓库路径
+.\scripts\deploy.ps1
+```
+
+脚本会自动：拉新代码 → npm ci → npm run build → 校验 .env → pm2 重启（如果入口路径变了会先 delete 再 start）。
+
+首次部署前置：
+- 装 Node 22+
+- 装 Visual Studio Build Tools（Desktop C++）+ Python 3（`better-sqlite3` 原生编译要）
+- 装 `npm install -g pm2 pm2-windows-service`
+
+详细 Windows + Caddy + 小程序对接见 `DEPLOY.md`（如有补充需要再加）。
