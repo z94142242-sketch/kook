@@ -1,0 +1,30 @@
+<view class="container">
+  <view class="card">
+    <view class="row">
+      <text>今日</text>
+      <text class="title">{{todayText}}</text>
+    </view>
+    <view class="row">
+      <text>本月</text>
+      <text class="title">{{monthText}}</text>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{recent.length > 0}}">
+    <view class="title">最近入账</view>
+    <view
+      wx:for="{{recent}}"
+      wx:key="settlementId"
+      class="row"
+      style="border-top: 1rpx solid #f0f0f0; padding-top: 16rpx"
+    >
+      <view>
+        <view>{{item._typeLabel}}</view>
+        <view class="subtle">{{item._timeText}} {{item.note ? '· ' + item.note : ''}}</view>
+      </view>
+      <view class="title">{{item._amountText}}</view>
+    </view>
+  </view>
+
+  <view wx:if="{{recent.length === 0}}" class="empty">暂无入账记录</view>
+</view>

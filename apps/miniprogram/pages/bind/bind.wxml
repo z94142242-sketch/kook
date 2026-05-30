@@ -1,0 +1,23 @@
+<view class="container">
+  <view class="card">
+    <view class="title">绑定 KOOK 账号</view>
+    <view class="subtle">
+      请输入你的 KOOK 用户 ID。
+      在 KOOK 客户端打开「开发者模式」后，右键你自己的头像 → 复制 ID。
+    </view>
+    <view style="margin-top: 24rpx">
+      <input
+        class="input"
+        placeholder="KOOK 用户 ID"
+        value="{{kookUserId}}"
+        bindinput="onInput"
+      />
+    </view>
+    <view class="btn {{loading ? 'disabled' : ''}}" bindtap="submit">
+      {{loading ? '提交中…' : '提交绑定'}}
+    </view>
+    <view class="subtle">
+      ⚠️ 你必须先在 KOOK 里发过 `/cm bind <昵称>`，并被管理员审核通过，才能在这里绑定。
+    </view>
+  </view>
+</view>

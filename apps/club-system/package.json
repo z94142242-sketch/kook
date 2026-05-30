@@ -1,14 +1,15 @@
 {
-  "name": "kook-codex-bridge",
-  "version": "0.2.0",
+  "name": "kook-club-system",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json && node -e \"require('fs').mkdirSync('dist/apps/club-system/src/db',{recursive:true});require('fs').copyFileSync('apps/club-system/src/db/schema.sql','dist/apps/club-system/src/db/schema.sql')\"",
-    "start": "node dist/src/index.js",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/db && cp src/db/schema.sql dist/db/schema.sql",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test 'apps/club-system/src/test/*.test.ts'"
+    "test": "node --import tsx --test 'src/test/*.test.ts'",
+    "sim": "tsx src/test/sim.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

@@ -1,22 +1,17 @@
 import zlib from "node:zlib";
 import WebSocket from "ws";
-import { hasCommandPrefix } from "./commands.js";
-import { config } from "./config.js";
-import { splitMessage } from "./messageSplit.js";
+import { config } from "../config.js";
+import type { KookSystemEvent } from "./types.js";
 
-type KookEnvelope<T> = {
-  code: number;
-  message?: string;
-  data: T;
-};
+type KookEnvelope<T> = { code: number; message?: string; data: T };
 
 type GatewayPayload = {
   s: number;
   sn?: number;
-  d?: KookEvent | { code?: number; session_id?: string };
+  d?: Record<string, unknown>;
 };
 
-export type KookEvent = {
+export type RawKookEvent = {
   channel_type?: string;
   type?: number;
   target_id?: string;
@@ -24,20 +19,23 @@ export type KookEvent = {
   content?: string;
   msg_id?: string;
   extra?: {
-    author?: { id?: string; bot?: boolean };
+    type?: string | number;
+    author?: { id?: string; username?: string; nickname?: string; bot?: boolean };
     body?: Record<string, unknown>;
     [key: string]: unknown;
   };
   [key: string]: unknown;
 };
 
-export type KookMessageHandler = (event: KookEvent) => Promise<void> | void;
-export type KookCardContent = unknown[];
+export type KookEventHandler = (event: KookSystemEvent) => Promise<void> | void;
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const PONG_TIMEOUT_MS = 6_000;
 const MAX_RECONNECT_DELAY_MS = 60_000;
 const SEEN_LIMIT = 500;
+
+const SYSTEM_EVENT_VOICE_JOIN = "joined_channel";
+const SYSTEM_EVENT_VOICE_LEAVE = "exited_channel";
 
 export class KookClient {
   private ws?: WebSocket;
@@ -51,7 +49,7 @@ export class KookClient {
   private seenMessageIds: string[] = [];
   private seenMessageIdSet = new Set<string>();
 
-  constructor(private readonly onMessage: KookMessageHandler) {}
+  constructor(private readonly onEvent: KookEventHandler) {}
 
   async connect() {
     this.intentionalClose = false;
@@ -65,30 +63,36 @@ export class KookClient {
     this.ws?.close();
   }
 
-  async sendMessage(content: string) {
-    for (const chunk of splitMessage(content)) {
-      await this.request("/message/create", {
-        type: 1,
-        target_id: config.allowedChannelId,
-        content: chunk
-      });
-    }
+  async sendText(channelId: string, content: string) {
+    return this.request<{ msg_id?: string }>("/message/create", {
+      type: 1,
+      target_id: channelId,
+      content
+    });
   }
 
-  async sendCard(content: KookCardContent) {
+  async sendCard(channelId: string, card: unknown[]) {
     const result = await this.request<{ msg_id?: string }>("/message/create", {
       type: 10,
-      target_id: config.allowedChannelId,
-      content: JSON.stringify(content)
+      target_id: channelId,
+      content: JSON.stringify(card)
     });
     return result.msg_id;
   }
 
-  async updateCard(msgId: string, content: KookCardContent) {
+  async updateCard(msgId: string, card: unknown[]) {
     await this.request("/message/update", {
       msg_id: msgId,
       type: 10,
-      content: JSON.stringify(content)
+      content: JSON.stringify(card)
+    });
+  }
+
+  async moveUserToVoice(targetChannelId: string, userIds: string[]) {
+    if (userIds.length === 0) return;
+    await this.request("/channel/move-user", {
+      target_id: targetChannelId,
+      user_ids: userIds
     });
   }
 
@@ -98,9 +102,7 @@ export class KookClient {
     const ws = new WebSocket(url);
     this.ws = ws;
 
-    ws.on("open", () => {
-      console.log("[kook] gateway connecting");
-    });
+    ws.on("open", () => console.log("[kook] gateway connecting"));
 
     ws.on("message", (data) => {
       void this.handleGatewayMessage(ws, data).catch((err) => {
@@ -140,9 +142,12 @@ export class KookClient {
 
     if (payload.s === 0) {
       if (typeof payload.sn === "number") this.lastSn = payload.sn;
-      const event = payload.d as KookEvent;
-      if (!this.shouldHandle(event)) return;
-      await this.onMessage(event);
+      const raw = payload.d as RawKookEvent;
+      if (raw?.extra?.author?.bot) return;
+      if (raw?.msg_id && this.markSeen(raw.msg_id) === false) return;
+
+      const event = mapEvent(raw);
+      if (event) await this.onEvent(event);
       return;
     }
 
@@ -158,28 +163,14 @@ export class KookClient {
     }
   }
 
-  private shouldHandle(event: KookEvent) {
-    if (event.extra?.author?.bot) return false;
-    if (isButtonEvent(event)) {
-      if (buttonChannelId(event) !== config.allowedChannelId) return false;
-      if (buttonUserId(event) !== config.allowedUserId) return false;
-    } else {
-      if (event.target_id !== config.allowedChannelId) return false;
-      if (event.author_id !== config.allowedUserId) return false;
-      if (typeof event.content !== "string") return false;
-      if (!hasCommandPrefix(event.content, config.commandPrefixes)) return false;
+  private markSeen(msgId: string) {
+    if (this.seenMessageIdSet.has(msgId)) return false;
+    this.seenMessageIdSet.add(msgId);
+    this.seenMessageIds.push(msgId);
+    while (this.seenMessageIds.length > SEEN_LIMIT) {
+      const oldest = this.seenMessageIds.shift();
+      if (oldest) this.seenMessageIdSet.delete(oldest);
     }
-
-    if (event.msg_id) {
-      if (this.seenMessageIdSet.has(event.msg_id)) return false;
-      this.seenMessageIdSet.add(event.msg_id);
-      this.seenMessageIds.push(event.msg_id);
-      while (this.seenMessageIds.length > SEEN_LIMIT) {
-        const oldest = this.seenMessageIds.shift();
-        if (oldest) this.seenMessageIdSet.delete(oldest);
-      }
-    }
-
     return true;
   }
 
@@ -234,7 +225,11 @@ export class KookClient {
     return url.toString();
   }
 
-  private async request<T>(path: string, bodyOrQuery?: Record<string, unknown>, method: "GET" | "POST" = "POST") {
+  private async request<T>(
+    path: string,
+    bodyOrQuery?: Record<string, unknown>,
+    method: "GET" | "POST" = "POST"
+  ): Promise<T> {
     const url = new URL(`${config.apiBase}${path}`);
     const headers: Record<string, string> = {
       Authorization: `Bot ${config.token}`,
@@ -261,6 +256,68 @@ export class KookClient {
   }
 }
 
+function mapEvent(raw: RawKookEvent): KookSystemEvent | null {
+  if (!raw) return null;
+
+  const extra = raw.extra ?? {};
+  const isButton = extra.type === "message_btn_click" || extra.body?.value !== undefined;
+
+  if (isButton) {
+    const body = extra.body ?? {};
+    const userInfo = body.user_info as { id?: unknown; username?: unknown } | undefined;
+    const userId =
+      pickString(body.user_id) ?? pickString(body.userId) ?? pickString(userInfo?.id) ?? raw.author_id;
+    const channelId = pickString(body.channel_id) ?? pickString(body.channelId) ?? raw.target_id;
+    const value = pickString(body.value);
+    if (!userId || !channelId || value === undefined) return null;
+    return {
+      kind: "button",
+      channelId,
+      userId,
+      userName: pickString(userInfo?.username) ?? pickString(extra.author?.nickname) ?? userId,
+      value,
+      msgId: raw.msg_id ?? "",
+      raw
+    };
+  }
+
+  if (raw.type === 255 && typeof extra.type === "string") {
+    if (extra.type === SYSTEM_EVENT_VOICE_JOIN || extra.type === SYSTEM_EVENT_VOICE_LEAVE) {
+      const body = (extra.body ?? {}) as Record<string, unknown>;
+      const userId = pickString(body.user_id);
+      const channelId = pickString(body.channel_id);
+      if (!userId || !channelId) return null;
+      return {
+        kind: "voice",
+        userId,
+        channelId,
+        state: extra.type === SYSTEM_EVENT_VOICE_JOIN ? "join" : "leave",
+        at: Date.now(),
+        raw
+      };
+    }
+    return null;
+  }
+
+  if (typeof raw.content === "string" && raw.target_id && raw.author_id) {
+    return {
+      kind: "message",
+      channelId: raw.target_id,
+      authorId: raw.author_id,
+      authorName: pickString(extra.author?.nickname) ?? pickString(extra.author?.username) ?? raw.author_id,
+      content: raw.content,
+      msgId: raw.msg_id ?? "",
+      raw
+    };
+  }
+
+  return null;
+}
+
+function pickString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 function parseGatewayPayload(data: WebSocket.RawData): GatewayPayload {
   const buffers = Array.isArray(data) ? data : [data];
   const buffer = Buffer.concat(buffers.map((item) => (Buffer.isBuffer(item) ? item : Buffer.from(item))));
@@ -271,7 +328,7 @@ function parseGatewayPayload(data: WebSocket.RawData): GatewayPayload {
       try {
         return JSON.parse(inflate(buffer).toString("utf8")) as GatewayPayload;
       } catch {
-        // Try the next KOOK-compatible deflate variant.
+        // try next variant
       }
     }
   }
@@ -280,21 +337,4 @@ function parseGatewayPayload(data: WebSocket.RawData): GatewayPayload {
 
 function toSafeMessage(err: unknown) {
   return err instanceof Error ? err.message : String(err);
-}
-
-function isButtonEvent(event: KookEvent) {
-  return event.extra?.type === "message_btn_click" || event.extra?.body?.value !== undefined;
-}
-
-function buttonUserId(event: KookEvent) {
-  const body = event.extra?.body;
-  const userInfo = body?.user_info as { id?: unknown } | undefined;
-  const userId = body?.user_id ?? body?.userId ?? userInfo?.id ?? event.author_id;
-  return typeof userId === "string" ? userId : undefined;
-}
-
-function buttonChannelId(event: KookEvent) {
-  const body = event.extra?.body;
-  const channelId = body?.channel_id ?? body?.channelId ?? event.target_id;
-  return typeof channelId === "string" ? channelId : undefined;
 }
