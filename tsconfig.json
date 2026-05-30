@@ -9,8 +9,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": "src"
   },
-  "include": ["src/**/*.ts", "apps/club-system/src/**/*.ts"],
-  "exclude": ["apps/club-system/src/test/**/*"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/club/test/**/*"]
 }

@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json && node -e \"require('fs').mkdirSync('dist/apps/club-system/src/db',{recursive:true});require('fs').copyFileSync('apps/club-system/src/db/schema.sql','dist/apps/club-system/src/db/schema.sql')\"",
-    "start": "node dist/src/index.js",
+    "build": "tsc -p tsconfig.json && node -e \"require('fs').mkdirSync('dist/club/db',{recursive:true});require('fs').copyFileSync('src/club/db/schema.sql','dist/club/db/schema.sql')\"",
+    "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test 'apps/club-system/src/test/*.test.ts'"
+    "test": "node --import tsx --test 'src/club/test/*.test.ts'"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",

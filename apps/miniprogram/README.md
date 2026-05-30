@@ -1,6 +1,6 @@
 # 俱乐部管理系统 - 微信小程序员工端
 
-调用 `apps/club-system` 的 HTTP API。
+调用 **后端 club-system 暴露的 HTTP API**（实现位于仓库根的 `src/club/http/`），后端跟 Codex bridge 跑在同一个 Node 进程里。
 
 ## 目录
 
@@ -24,10 +24,10 @@ pages/
 
 1. 用 [微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html) 打开 `apps/miniprogram/` 目录
 2. 修改 `project.config.json` 里的 `appid` 为你的小程序 AppID（无 AppID 也能用「测试号」打开）
-3. 启动后端：
+3. 启动后端（仓库根）：
    ```bash
-   cd apps/club-system
-   # 在 .env 里设置：
+   # 在仓库根的 .env 里设置：
+   #   CLUB_ENABLED=true
    #   CLUB_HTTP_ENABLED=true
    #   CLUB_HTTP_PORT=3000
    #   CLUB_DEV_LOGIN_ENABLED=true   # 本地无微信时方便测试
@@ -40,7 +40,7 @@ pages/
 
 ## 接口约定
 
-所有接口由 `apps/club-system/src/http/routes/` 实现，参见后端 README。
+所有接口由 `src/club/http/routes/` 实现，参见根 `README.md`。
 请求都需要 `Authorization: Bearer <token>` 头（除了 `/api/auth/wx-login` 和健康检查）。
 
 ## 生产部署

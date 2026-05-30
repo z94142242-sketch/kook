@@ -5,7 +5,7 @@ import {
   initCodexBridge,
   isCodexButton,
   isCodexMessage
-} from "./codexBridge.js";
+} from "./codex/bridge.js";
 import { KookClient } from "./kook/client.js";
 
 async function main() {
@@ -15,10 +15,10 @@ async function main() {
   // ---- Club system: optional, gated by CLUB_ENABLED ----------------------
   let clubRuntime: { shutdown: () => void } | undefined;
   let clubHandlers:
-    | typeof import("../apps/club-system/src/index.js")
+    | typeof import("./club/index.js")
     | undefined;
   if (config.club.enabled) {
-    clubHandlers = await import("../apps/club-system/src/index.js");
+    clubHandlers = await import("./club/index.js");
     clubRuntime = clubHandlers.startClubSystem();
   }
 
