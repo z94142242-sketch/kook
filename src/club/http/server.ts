@@ -29,10 +29,7 @@ export function buildHttpApp() {
 
   app.onError((err, c) => {
     console.error(`[http] error path=${c.req.path}`, err);
-    return c.json(
-      { error: "internal_error", message: err instanceof Error ? err.message : String(err) },
-      500
-    );
+    return c.json({ error: "internal_error" }, 500);
   });
 
   return app;
