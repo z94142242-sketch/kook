@@ -180,7 +180,7 @@ describe("HTTP API", () => {
       });
       if (res.status !== 403) {
         const body = await res.text();
-        console.error(` + "`expected 403, got ${res.status}: ${body}`" + `);
+        console.error("expected 403, got " + res.status + ": " + body);
         process.exit(1);
       }
     `;
