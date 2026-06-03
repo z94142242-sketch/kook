@@ -4,8 +4,10 @@ name: Deploy to 雨云
 # - main 分支有新 commit（PR 合并时自动）
 # - 仓库 Actions 页面手动点「Run workflow」（手机 GitHub app 也有这个按钮）
 #
-# 防御：只有 repository variable AUTO_DEPLOY_ENABLED=true 时才真跑 push 触发，
-# 否则只能手动触发。这样初次设置 runner 之前 push 到 main 不会留一堆失败 run。
+# 防御：push 触发时只在以下任一条件满足时真正部署：
+# - repository variable AUTO_DEPLOY_ENABLED=true
+# - commit message 包含 [deploy-now]（一次性部署触发）
+# 否则仍然跳过，避免 runner 未配置好时每次 push 都失败。
 on:
   push:
     branches: [main]
@@ -20,7 +22,7 @@ jobs:
   deploy:
     name: 部署到雨云 Windows 服务器
     runs-on: [self-hosted, Windows]
-    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY_ENABLED == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY_ENABLED == 'true' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[deploy-now]')) }}
     timeout-minutes: 15
 
     steps:
