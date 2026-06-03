@@ -53,7 +53,12 @@ export class KookClient {
 
   async connect() {
     this.intentionalClose = false;
-    await this.open(false);
+    try {
+      await this.open(false);
+    } catch (err) {
+      console.error("[kook] initial connect failed: " + toSafeMessage(err));
+      this.reconnect(false);
+    }
   }
 
   close() {
