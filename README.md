@@ -58,7 +58,7 @@ CODEX_TASK_TIMEOUT_MS=600000
 
 ```json
 {
-  "demo": {
+  "bridge": {
     "cwd": "C:\\Users\\Administrator\\Documents\\Codex\\2026-05-22\\codex\\desktop-tutorial-inspect",
     "sandbox": "workspace-write",
     "templates": {
@@ -112,21 +112,21 @@ npm run dev
 ```text
 /codex home
 /codex projects
-/codex run demo 请读取 README.md 并总结
+/codex run bridge 请读取 README.md 并总结
 ```
 
 启动任务：
 
 ```text
-/codex run demo 请读取 README.md 并总结
+/codex run bridge 请读取 README.md 并总结
 ```
 
 使用项目模板：
 
 ```text
-/codex run demo:check
-/codex run demo:readme
-/codex run demo:build
+/codex run bridge:check
+/codex run bridge:readme
+/codex run bridge:build
 ```
 
 继续任务：
@@ -234,8 +234,8 @@ data/tasks.json
 ## 验收
 
 1. 运行 `npm run dev` 后，机器人保持在线。
-2. 手机 KOOK 发 `/c 项目` 能看到 `demo`。
-3. 手机 KOOK 发 `/c demo 请读取 README.md` 能收到 Codex 回复。
+2. 手机 KOOK 发 `/c 项目` 能看到 `bridge`。
+3. 手机 KOOK 发 `/c bridge 请读取 README.md` 能收到 Codex 回复。
 4. 回复中能拿到 `taskId`。
 5. 用 `/codex reply <taskId>` 能继续同一个 Codex 会话。
 6. 非授权用户发命令无响应。
@@ -246,7 +246,7 @@ data/tasks.json
 
 ## 启用 club-system 俱乐部管理（可选）
 
-从 v0.2 起，本仓库还内置一个**俱乐部 / 工作室管理后台 + 微信小程序 API**。它跟 Codex bridge **跑在同一个进程里、共用同一个 KOOK Bot**（一条 Gateway 连接），所以多开一套功能不需要再注册第二个机器人，也不需要起第二个 Node 进程。
+从 v0.2 起，本仓库还内置一个**俱乐部 / 工作室管理后台 + 微信小程序 API**。完整能力清单见 `docs/KOOK-BOT-FEATURES.md`；旧版 `apps/club-system` 的员工端、工作室端、订单、结算能力已经迁移到 `src/club`。它跟 Codex bridge **跑在同一个进程里、共用同一个 KOOK Bot**（一条 Gateway 连接），所以多开一套功能不需要再注册第二个机器人，也不需要起第二个 Node 进程。
 
 ### 关掉时（默认）
 
