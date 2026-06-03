@@ -51,13 +51,12 @@ async function handleShift(kook: KookClient, event: KookButtonEvent, action: str
       return;
     }
     const shift = openShift(employee.kookUserId, Date.now());
-    // 如果用户已经在某个语音里，把后续语音时长挂到这个 shift 上
+    // 如果用户上班前已经在语音里，只从班次开始时间之后统计本班语音时长。
     const openVoice = findOpenSession(employee.kookUserId);
     if (openVoice && !openVoice.shiftId) {
-      // 直接附加：先 close 再 open 一段新的，或者用 update。这里采用 update。
       const { getDb } = await import("../db/database.js");
-      getDb().prepare("UPDATE voice_sessions SET shift_id = ? WHERE voice_session_id = ?")
-        .run(shift.shiftId, openVoice.voiceSessionId);
+      getDb().prepare("UPDATE voice_sessions SET shift_id = ?, joined_at = ? WHERE voice_session_id = ?")
+        .run(shift.shiftId, shift.startedAt, openVoice.voiceSessionId);
     }
 
     // 把员工拉到待命语音房（如果他已经在某个语音里）

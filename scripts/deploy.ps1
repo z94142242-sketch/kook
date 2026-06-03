@@ -67,15 +67,26 @@ if (-not (Test-Path ".env")) {
     exit 1
 }
 $envText = Get-Content .env -Raw
+
+function Test-EnvValue {
+    param([string]$Text, [string]$Key)
+    return [regex]::IsMatch($Text, "(?m)^\s*" + [regex]::Escape($Key) + "\s*=\s*\S")
+}
+
+function Test-EnvTrue {
+    param([string]$Text, [string]$Key)
+    return [regex]::IsMatch($Text, "(?mi)^\s*" + [regex]::Escape($Key) + "\s*=\s*true\s*$")
+}
+
 foreach ($key in @("KOOK_BOT_TOKEN", "KOOK_ALLOWED_USER_ID", "KOOK_ALLOWED_CHANNEL_ID")) {
-    if ($envText -notmatch "^\s*$key\s*=\s*\S") {
+    if (-not (Test-EnvValue $envText $key)) {
         Write-Error ".env 缺少 $key 或值为空。补齐后再跑。"
         exit 1
     }
 }
-if ($envText -match "^\s*CLUB_ENABLED\s*=\s*true\s*$") {
+if (Test-EnvTrue $envText "CLUB_ENABLED") {
     foreach ($key in @("CLUB_GUILD_ID", "CLUB_COMMAND_CHANNEL_ID", "CLUB_STANDBY_VOICE_CHANNEL_ID")) {
-        if ($envText -notmatch "^\s*$key\s*=\s*\S") {
+        if (-not (Test-EnvValue $envText $key)) {
             Write-Error "CLUB_ENABLED=true 但 .env 缺少 $key。补齐后再跑。"
             exit 1
         }
@@ -93,7 +104,7 @@ if ($SkipPmRestart) {
 Write-Host ""
 Write-Host "==> [5/5] pm2 重启..." -ForegroundColor Cyan
 
-# 入口路径在不同版本之间变化过，检测当前 pm2 进程是不是用的旧路径，是就 delete 重建
+# 入口路径在不同版本之间变化过，检测当前 pm2 进程是不是用的旧路径，是就 delete 后重建
 $jlist = pm2 jlist 2>$null | ConvertFrom-Json
 $existing = $jlist | Where-Object { $_.name -eq $PmName }
 $newEntry = "dist\index.js"

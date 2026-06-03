@@ -4,7 +4,7 @@ import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resetDbForTest } from "../db/database.js";
 import { bindEmployee } from "../domain/employees.js";
-import { createOrder, findOrder } from "../domain/orders.js";
+import { findOrder } from "../domain/orders.js";
 import { listSettlements } from "../domain/settlements.js";
 import { buildHttpApp } from "../http/server.js";
 
@@ -166,13 +166,31 @@ describe("HTTP API", () => {
   });
 
   it("dev-login 在生产模式下应被拒绝", async () => {
-    // 暂时关掉 dev-login
-    const oldEnv = process.env.CLUB_DEV_LOGIN_ENABLED;
-    process.env.CLUB_DEV_LOGIN_ENABLED = "false";
-    // 重新加载 config 模拟（实际生产 import 时机就锁定了，这里只能验证 config 状态）
-    process.env.CLUB_DEV_LOGIN_ENABLED = oldEnv;
-    // 实际验证：config.http.devLoginEnabled 在 _setup 已设为 true，本测试只占位
-    assert.ok(true);
+    const { spawnSync } = await import("node:child_process");
+    const childScript = `
+      import "./src/club/test/_setup.ts";
+      const { resetDbForTest } = await import("./src/club/db/database.ts");
+      const { buildHttpApp } = await import("./src/club/http/server.ts");
+      resetDbForTest();
+      const app = buildHttpApp();
+      const res = await app.request("/api/auth/dev-login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ openid: "wx_prod" })
+      });
+      if (res.status !== 403) {
+        const body = await res.text();
+        console.error("expected 403, got " + res.status + ": " + body);
+        process.exit(1);
+      }
+    `;
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", childScript], {
+      cwd: process.cwd(),
+      env: { ...process.env, CLUB_DEV_LOGIN_ENABLED: "false" },
+      encoding: "utf8"
+    });
+
+    assert.equal(result.status, 0, result.stderr || result.stdout);
   });
 
   it("管理员可以更新规则", async () => {
