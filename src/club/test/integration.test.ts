@@ -162,11 +162,14 @@ describe("integration: 完整业务流", () => {
     handleVoiceEvent(voice("join", ALICE, "ch-lobby", 0));
     mock.reset();
     await handleButton(mock.asClient(), btn("shift:clock-in", ALICE));
+    const shift = findOpenShift(ALICE);
+    assert.ok(shift, "应该开了一个班");
 
-    // 假设挂了 2 小时
-    handleVoiceEvent(voice("leave", ALICE, "ch-lobby", 2 * 3_600_000));
-    handleVoiceEvent(voice("join", ALICE, STANDBY, 2 * 3_600_000));
-    handleVoiceEvent(voice("leave", ALICE, STANDBY, 2 * 3_600_000 + 1));
+    // 假设从上班后挂了 2 小时
+    const twoHoursAfterShift = shift.startedAt + 2 * 3_600_000;
+    handleVoiceEvent(voice("leave", ALICE, "ch-lobby", twoHoursAfterShift));
+    handleVoiceEvent(voice("join", ALICE, STANDBY, twoHoursAfterShift));
+    handleVoiceEvent(voice("leave", ALICE, STANDBY, twoHoursAfterShift + 1));
 
     mock.reset();
     await handleButton(mock.asClient(), btn("shift:clock-out", ALICE));
@@ -222,7 +225,7 @@ describe("integration: 完整业务流", () => {
     assert.equal(listSettlements({ kookUserId: BOB }).length, 0);
   });
 
-  it("语音时长自动累计到当前班次", async () => {
+  it("上班前已在语音房时，只累计上班后的语音时长", async () => {
     const mock = new MockKookClient();
     await handleMessage(mock.asClient(), msg("/cm bind", ADMIN));
     await handleMessage(mock.asClient(), msg("/cm bind", ALICE));
@@ -230,11 +233,12 @@ describe("integration: 完整业务流", () => {
 
     handleVoiceEvent(voice("join", ALICE, STANDBY, 0));
     await handleButton(mock.asClient(), btn("shift:clock-in", ALICE));
-
-    // 模拟挂了 30 分钟
-    handleVoiceEvent(voice("leave", ALICE, STANDBY, 30 * 60_000));
-
     const shift = findOpenShift(ALICE);
-    assert.equal(shift?.totalVoiceMs, 30 * 60_000);
+    assert.ok(shift, "应该开了一个班");
+
+    handleVoiceEvent(voice("leave", ALICE, STANDBY, shift.startedAt + 30 * 60_000));
+
+    const updated = findOpenShift(ALICE);
+    assert.equal(updated?.totalVoiceMs, 30 * 60_000);
   });
 });
